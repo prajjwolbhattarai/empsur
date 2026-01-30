@@ -12,6 +12,8 @@
         .survey-card:active { transform: scale(0.98); }
         .animate-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .loading-shimmer { background: linear-gradient(90deg, #f1f5f9 25%, #f8fafc 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
@@ -30,7 +32,11 @@
 
     <main class="flex-grow container mx-auto px-4 py-8">
         <div id="survey-container" class="max-w-2xl mx-auto animate-in">
-            <!-- Content injected via JS -->
+            <!-- Loading State -->
+            <div class="space-y-6">
+                <div class="h-12 w-1/2 loading-shimmer rounded-xl mx-auto"></div>
+                <div class="h-64 w-full loading-shimmer rounded-[2rem]"></div>
+            </div>
         </div>
     </main>
 
@@ -39,7 +45,7 @@
     </footer>
 
     <script>
-        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxTvoifj1hblrg8zjjDLJGw1USPngqBB2kcJNVH3D7hue_yXRDkg6xQTfhdB5UHTL_p/exec';
+        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbTvoifj1hblrg8zjjDLJGw1USPngqBB2kcJNVH3D7hue_yXRDkg6xQTfhdB5UHTL_p/exec';
         
         const translations = {
             de: {
@@ -56,7 +62,8 @@
                 successMsg: 'Ihr Bericht wurde gesichert und an die Projektdatenbank gesendet.',
                 newCheckin: 'Neuer Check-In',
                 months: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
-                backToDash: 'Zum Dashboard'
+                backToDash: 'Zum Dashboard',
+                loading: 'Lade Konfiguration...'
             },
             en: {
                 workerIdent: 'Worker Identification',
@@ -72,7 +79,8 @@
                 successMsg: 'Your report has been secured and sent to the project database.',
                 newCheckin: 'New Check-In',
                 months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
-                backToDash: 'To Dashboard'
+                backToDash: 'To Dashboard',
+                loading: 'Loading config...'
             }
         };
 
@@ -84,21 +92,38 @@
 
         const surveyApp = {
             lang: localStorage.getItem('app_lang') || 'de',
-            questions: JSON.parse(localStorage.getItem('survey_questions') || '[]'),
+            questions: [],
             isSyncing: false,
             state: {
                 isStarted: false,
                 email: '',
                 isAnonymous: false,
-                month: translations.de.months[new Date().getMonth()],
+                month: '',
                 year: new Date().getFullYear().toString(),
                 answers: {},
                 submitted: false
             },
 
-            init() {
+            async init() {
                 this.state.month = translations[this.lang].months[new Date().getMonth()];
+                await this.fetchQuestions();
                 this.updateUI();
+            },
+
+            async fetchQuestions() {
+                try {
+                    const response = await fetch(APPSCRIPT_URL);
+                    const cloudResult = await response.json();
+                    if (cloudResult.questions && cloudResult.questions.length > 0) {
+                        this.questions = cloudResult.questions;
+                    } else {
+                        // Fallback to local if cloud is empty
+                        this.questions = JSON.parse(localStorage.getItem('survey_questions') || '[]');
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch cloud config:", e);
+                    this.questions = JSON.parse(localStorage.getItem('survey_questions') || '[]');
+                }
             },
 
             setLang(lang) {
@@ -218,6 +243,7 @@
                 this.isSyncing = true;
                 this.updateUI();
                 const period = `${this.state.month} ${this.state.year}`;
+                
                 const payload = {
                     action: 'submit_response',
                     payload: {
@@ -228,10 +254,21 @@
                     }
                 };
                 try {
-                    await fetch(APPSCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+                    await fetch(APPSCRIPT_URL, { 
+                        method: 'POST', 
+                        mode: 'no-cors', 
+                        headers: { 'Content-Type': 'text/plain' }, 
+                        body: JSON.stringify(payload) 
+                    });
                     this.state.submitted = true;
-                } catch (err) { console.error(err); this.state.submitted = true; } 
-                finally { this.isSyncing = false; this.updateUI(); }
+                } catch (err) { 
+                    console.error(err); 
+                    this.state.submitted = true; 
+                } 
+                finally { 
+                    this.isSyncing = false; 
+                    this.updateUI(); 
+                }
             }
         };
         surveyApp.init();

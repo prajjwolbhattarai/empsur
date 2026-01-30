@@ -96,7 +96,7 @@
     </footer>
 
     <script>
-        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxTvoifj1hblrg8zjjDLJGw1USPngqBB2kcJNVH3D7hue_yXRDkg6xQTfhdB5UHTL_p/exec';
+        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbTvoifj1hblrg8zjjDLJGw1USPngqBB2kcJNVH3D7hue_yXRDkg6xQTfhdB5UHTL_p/exec';
         
         const translations = {
             de: {
@@ -576,7 +576,15 @@
                 this.updateUI();
                 try {
                     const response = await fetch(APPSCRIPT_URL);
-                    const rows = await response.json();
+                    const cloudResult = await response.json();
+                    
+                    // Handle new structure: {responses, questions}
+                    const rows = cloudResult.responses || [];
+                    if (cloudResult.questions && cloudResult.questions.length > 0) {
+                        this.questions = cloudResult.questions;
+                        this.saveQuestions();
+                    }
+
                     if (Array.isArray(rows) && rows.length > 0) {
                         const headers = rows[0];
                         this.responses = rows.slice(1).map((row, idx) => {
@@ -612,7 +620,7 @@
                         headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify(payload) 
                     }); 
-                    alert('Schema Sync Request Sent.'); 
+                    alert('Schema & Configuration Sync Request Sent.'); 
                     setTimeout(() => this.fetchCloudData(), 2000); 
                 } catch (e) { console.error("Sync Error:", e); } 
                 finally { this.isSyncing = false; this.updateUI(); }
