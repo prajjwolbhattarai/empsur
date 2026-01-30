@@ -13,6 +13,8 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         input:focus, select:focus, textarea:focus { border-color: #facc15 !important; }
+        .animate-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
@@ -74,14 +76,12 @@
                 successMsg: 'Ihr Bericht wurde verschlüsselt und an die Projektdatenbank gesendet.',
                 newCheckin: 'Neuer Check-In',
                 noActiveMetrics: 'Keine aktiven Metriken',
-                infraUpdate: 'Infrastruktur-Update in Arbeit',
                 executivePulse: 'Vorstands-Impuls',
                 opsIntelligence: 'Betriebs-Intelligenz',
                 totalEntries: 'Gesamteinträge',
                 viewActive: 'Gefiltert',
                 fullYear: 'Ganzes Jahr',
                 refresh: 'Aktualisieren',
-                structure: 'Struktur',
                 performanceOverTime: 'Leistung im Zeitverlauf',
                 avgSatisfaction: 'Durchschn. Zufriedenheit (%)',
                 metricLeaderboard: 'Metrik-Bestenliste',
@@ -132,14 +132,12 @@
                 successMsg: 'Your report has been encrypted and sent to the project database.',
                 newCheckin: 'New Check-In',
                 noActiveMetrics: 'No Active Metrics',
-                infraUpdate: 'Infrastructure update in progress',
                 executivePulse: 'Executive Pulse',
                 opsIntelligence: 'Ops Intelligence',
                 totalEntries: 'Total Entries',
                 viewActive: 'Filtered',
                 fullYear: 'Full Year',
                 refresh: 'Refresh',
-                structure: 'Structure',
                 performanceOverTime: 'Performance Over Time',
                 avgSatisfaction: 'Avg. Satisfaction (%)',
                 metricLeaderboard: 'Metric Leaderboard',
@@ -185,14 +183,14 @@
             questions: [],
             responses: [],
             selectedMonth: 'All',
-            selectedYear: '2026',
+            selectedYear: new Date().getFullYear().toString(),
             editingQuestionId: null,
             surveyState: {
                 isStarted: false,
                 email: '',
                 isAnonymous: false,
                 month: '',
-                year: '2026',
+                year: new Date().getFullYear().toString(),
                 answers: {},
                 submitted: false
             },
@@ -208,7 +206,7 @@
                 if (!raw) {
                     const t = translations[this.lang];
                     this.questions = t.defaultQuestions.map((txt, i) => ({
-                        id: `q-${Math.random().toString(36).substr(2, 5)}`,
+                        id: `q-${i}-${Math.random().toString(36).substr(2, 4)}`,
                         text: txt,
                         type: i === 4 ? QuestionType.TEXT_FEEDBACK : (i % 2 === 0 ? QuestionType.SATISFACTION_SCALE : QuestionType.PERFORMANCE_RATING),
                         hidden: false,
@@ -277,7 +275,7 @@
                     container.innerHTML = `
                         <div class="bg-white p-8 md:p-14 rounded-[2.5rem] shadow-2xl max-w-lg mx-auto border-t-[12px] border-yellow-400">
                             <h2 class="text-4xl font-black mb-2 text-slate-900 uppercase tracking-tighter leading-none">${t.title}</h2>
-                            <p class="text-slate-400 font-black text-[10px] uppercase tracking-[0.3em] mb-10">${t.survey} v2.5</p>
+                            <p class="text-slate-400 font-black text-[10px] uppercase tracking-[0.3em] mb-10">${t.survey} v2.7</p>
                             <form onsubmit="app.startSurvey(event)" class="space-y-6">
                                 <div class="space-y-2">
                                     <div class="flex justify-between items-center px-1">
@@ -340,7 +338,7 @@
                                             `).join('')}
                                         </div>
                                     ` : `
-                                        <textarea required rows="4" oninput="app.setAnswer('${q.id}', this.value)" class="w-full px-6 py-6 rounded-2xl border-4 border-slate-50 focus:border-yellow-400 outline-none font-bold text-slate-700 bg-slate-50/10 text-xl transition-all">${this.surveyState.answers[q.id]?.value || ''}</textarea>
+                                        <textarea required rows="4" oninput="app.setAnswer('${q.id}', this.value, true)" class="w-full px-6 py-6 rounded-2xl border-4 border-slate-50 focus:border-yellow-400 outline-none font-bold text-slate-700 bg-slate-50/10 text-xl transition-all">${this.surveyState.answers[q.id]?.value || ''}</textarea>
                                     `}
                                 </div>
                             `).join('')}
@@ -353,33 +351,85 @@
             },
 
             startSurvey(e) { e.preventDefault(); this.surveyState.isStarted = true; this.updateUI(); },
-            setAnswer(qid, val) { this.surveyState.answers[qid] = { value: val }; this.updateUI(); },
-            resetSurvey() { this.surveyState = { isStarted: false, email: '', isAnonymous: false, month: translations[this.lang].months[new Date().getMonth()], year: '2026', answers: {}, submitted: false }; this.updateUI(); },
+            
+            setAnswer(qid, val, silent = false) { 
+                this.surveyState.answers[qid] = { value: val }; 
+                if (!silent) this.updateUI(); 
+            },
+
+            resetSurvey() { 
+                this.surveyState = { 
+                    isStarted: false, 
+                    email: '', 
+                    isAnonymous: false, 
+                    month: translations[this.lang].months[new Date().getMonth()], 
+                    year: new Date().getFullYear().toString(), 
+                    answers: {}, 
+                    submitted: false 
+                }; 
+                this.updateUI(); 
+            },
 
             async submitSurvey(e) {
                 e.preventDefault();
                 this.isSyncing = true;
                 this.updateUI();
+                
+                const period = `${this.surveyState.month} ${this.surveyState.year}`;
                 const payload = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    employeeEmail: this.surveyState.isAnonymous ? (this.lang === 'de' ? 'Anonym' : 'Anonymous') : this.surveyState.email,
-                    month: this.surveyState.month, year: this.surveyState.year, timestamp: new Date().toISOString(),
-                    answers: Object.entries(this.surveyState.answers).map(([qid, data]) => ({ questionId: qid, value: data.value }))
+                    action: 'submit_response',
+                    payload: {
+                        id: Math.random().toString(36).substr(2, 9),
+                        employeeEmail: this.surveyState.isAnonymous ? 'Anonym' : this.surveyState.email,
+                        month: this.surveyState.month, 
+                        year: this.surveyState.year,
+                        period: period,
+                        timestamp: new Date().toISOString(),
+                        answers: Object.entries(this.surveyState.answers).map(([qid, data]) => ({ 
+                            questionId: qid, 
+                            value: data.value 
+                        }))
+                    }
                 };
+
                 try {
-                    await fetch(APPSCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'submit_response', payload }) });
+                    await fetch(APPSCRIPT_URL, { 
+                        method: 'POST', 
+                        mode: 'no-cors', 
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(payload) 
+                    });
                     this.surveyState.submitted = true;
-                } catch (err) { this.surveyState.submitted = true; }
-                finally { this.isSyncing = false; this.updateUI(); }
+                } catch (err) { 
+                    console.error("Submission error:", err);
+                    this.surveyState.submitted = true; 
+                } finally { 
+                    this.isSyncing = false; 
+                    this.updateUI(); 
+                }
+            },
+
+            normalizeMonth(monthName) {
+                // Return index 0-11 for a month name in either DE or EN
+                const de = translations.de.months;
+                const en = translations.en.months;
+                let idx = de.indexOf(monthName);
+                if (idx === -1) idx = en.indexOf(monthName);
+                return idx;
             },
 
             renderCEOView() {
                 const container = document.getElementById('view-container');
                 const t = translations[this.lang];
-                const filtered = this.responses.filter(r => (this.selectedMonth === 'All' || r.month === this.selectedMonth) && r.year === this.selectedYear);
+                
+                const filtered = this.responses.filter(r => {
+                    const matchesMonth = this.selectedMonth === 'All' || r.monthIndex === this.normalizeMonth(this.selectedMonth);
+                    const matchesYear = r.year === this.selectedYear;
+                    return matchesMonth && matchesYear;
+                });
 
                 container.innerHTML = `
-                    <div class="space-y-8 pb-24">
+                    <div class="space-y-8 pb-24 animate-in">
                         <!-- Top Header -->
                         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
                             <div class="relative z-10">
@@ -420,12 +470,12 @@
                                     ${filtered.flatMap(r => r.answers.filter(a => {
                                         const q = this.questions.find(que => que.id === a.questionId);
                                         return q && q.type === QuestionType.TEXT_FEEDBACK && a.value;
-                                    }).map(a => `<div class="border-l-2 border-yellow-400 pl-4 py-1"><p class="text-[9px] font-bold text-slate-500">${r.month} ${r.year} • ${r.employeeEmail}</p><p class="text-xs italic">"${a.value}"</p></div>`)).join('') || `<p class="text-slate-500 italic text-xs">${t.noActiveComments}</p>`}
+                                    }).map(a => `<div class="border-l-2 border-yellow-400 pl-4 py-1"><p class="text-[9px] font-bold text-slate-500">${t.months[r.monthIndex]} ${r.year} • ${r.employeeEmail}</p><p class="text-xs italic">"${a.value}"</p></div>`)).join('') || `<p class="text-slate-500 italic text-xs">${t.noActiveComments}</p>`}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- System Catalog (Infrastructure) -->
+                        <!-- Metric Infra Management -->
                         <div class="bg-white p-8 md:p-12 rounded-[2.5rem] border-2 border-slate-100 shadow-sm">
                             <div class="flex justify-between items-center mb-10">
                                 <div>
@@ -438,7 +488,7 @@
                             </div>
 
                             ${this.editingQuestionId ? `
-                                <div class="bg-slate-50 p-8 rounded-3xl border-2 border-slate-100 mb-10 animate-in slide-in-from-top duration-300">
+                                <div class="bg-slate-50 p-8 rounded-3xl border-2 border-slate-100 mb-10 animate-in">
                                     <form onsubmit="app.saveQuestionForm(event)" class="space-y-6">
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div class="space-y-2">
@@ -504,19 +554,29 @@
                             </div>
                         </div>
 
-                        <!-- Data Visuals Grid -->
+                        <!-- Data Cards -->
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             ${this.questions.filter(q => !q.hidden).map(q => {
                                 const ans = filtered.flatMap(r => r.answers.filter(a => a.questionId === q.id));
                                 if (q.type === QuestionType.TEXT_FEEDBACK) return '';
                                 const max = q.type === QuestionType.SATISFACTION_SCALE ? 5 : 10;
-                                const scores = ans.map(a => Number(a.value)).filter(v => !isNaN(v) && v > 0);
+                                const scores = ans.map(a => parseFloat(a.value)).filter(v => !isNaN(v));
                                 const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
                                 const percent = (avg / max) * 100;
-                                return `<div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[180px]">
-                                    <div class="flex justify-between items-start"><p class="text-[10px] font-black uppercase tracking-tight text-slate-900 max-w-[75%]">${q.text}</p><span class="bg-slate-50 text-[8px] font-black px-2 py-1 rounded">${scores.length}</span></div>
-                                    <div><div class="flex items-baseline gap-1 mb-2"><span class="text-3xl font-black ${percent > 75 ? 'text-emerald-500' : 'text-yellow-500'}">${avg.toFixed(1)}</span><span class="text-slate-300 text-xs font-bold">/${max}</span></div><div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-yellow-400" style="width: ${percent}%"></div></div></div>
-                                </div>`;
+                                return `
+                                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[180px]">
+                                        <div class="flex justify-between items-start"><p class="text-[10px] font-black uppercase tracking-tight text-slate-900 max-w-[75%]">${q.text}</p><span class="bg-slate-50 text-[8px] font-black px-2 py-1 rounded">${scores.length}</span></div>
+                                        <div>
+                                            <div class="flex items-baseline gap-1 mb-2">
+                                                <span class="text-3xl font-black ${percent > 75 ? 'text-emerald-500' : 'text-yellow-500'}">${avg.toFixed(1)}</span>
+                                                <span class="text-slate-300 text-xs font-bold">/${max}</span>
+                                            </div>
+                                            <div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-yellow-400 transition-all duration-700" style="width: ${percent}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
                             }).join('')}
                         </div>
                     </div>
@@ -537,7 +597,7 @@
                 const activeYears = Array.from(yearsSelect.selectedOptions).map(o => o.value);
 
                 if (this.editingQuestionId === 'new') {
-                    this.questions.push({ id: `q-${Math.random().toString(36).substr(2, 5)}`, text, type, isRecurring, activeMonths, activeYears, hidden: false });
+                    this.questions.push({ id: `q-${this.questions.length}-${Math.random().toString(36).substr(2, 4)}`, text, type, isRecurring, activeMonths, activeYears, hidden: false });
                 } else {
                     const q = this.questions.find(que => que.id === this.editingQuestionId);
                     if (q) Object.assign(q, { text, type, isRecurring, activeMonths, activeYears });
@@ -558,45 +618,126 @@
                 const ctx = document.getElementById('trendChart')?.getContext('2d');
                 if (!ctx) return;
                 const t = translations[this.lang];
-                const chartData = t.months.map((m, i) => {
-                    const monthResponses = this.responses.filter(r => r.month === m && r.year === this.selectedYear);
+                
+                const chartData = t.months.map((_, monthIdx) => {
+                    const monthResponses = this.responses.filter(r => r.monthIndex === monthIdx && r.year === this.selectedYear);
                     let score = 0, count = 0;
-                    monthResponses.forEach(r => r.answers.forEach(a => {
-                        const q = this.questions.find(que => que.id === a.questionId);
-                        if (q && q.type !== QuestionType.TEXT_FEEDBACK && a.value) {
-                            score += (Number(a.value) / (q.type === QuestionType.SATISFACTION_SCALE ? 5 : 10)) * 100;
-                            count++;
-                        }
-                    }));
+                    
+                    monthResponses.forEach(r => {
+                        r.answers.forEach(a => {
+                            const q = this.questions.find(que => que.id === a.questionId);
+                            if (q && q.type !== QuestionType.TEXT_FEEDBACK) {
+                                const val = parseFloat(a.value);
+                                if (!isNaN(val)) {
+                                    const max = q.type === QuestionType.SATISFACTION_SCALE ? 5 : 10;
+                                    score += (val / max) * 100;
+                                    count++;
+                                }
+                            }
+                        });
+                    });
                     return count > 0 ? Math.round(score / count) : 0;
                 });
+
                 if (window.myTrendChart) window.myTrendChart.destroy();
                 window.myTrendChart = new Chart(ctx, {
                     type: 'line',
-                    data: { labels: t.shortMonths, datasets: [{ data: chartData, borderColor: '#facc15', backgroundColor: 'rgba(250, 204, 21, 0.05)', fill: true, tension: 0.4, borderWidth: 4, pointRadius: 0 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { font: { size: 9, weight: 'bold' } }, grid: { display: false } }, x: { ticks: { font: { size: 9, weight: 'bold' } }, grid: { display: false } } } }
+                    data: { 
+                        labels: t.shortMonths, 
+                        datasets: [{ 
+                            data: chartData, 
+                            borderColor: '#facc15', 
+                            backgroundColor: 'rgba(250, 204, 21, 0.1)', 
+                            fill: true, 
+                            tension: 0.4, 
+                            borderWidth: 4, 
+                            pointRadius: 4,
+                            pointBackgroundColor: '#facc15',
+                            pointBorderColor: '#ffffff',
+                            pointHoverRadius: 6
+                        }] 
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } }, 
+                        scales: { 
+                            y: { 
+                                beginAtZero: true, 
+                                max: 100, 
+                                ticks: { font: { size: 9, weight: 'bold' }, callback: val => val + '%' }, 
+                                grid: { color: 'rgba(0,0,0,0.05)' } 
+                            }, 
+                            x: { 
+                                ticks: { font: { size: 9, weight: 'bold' } }, 
+                                grid: { display: false } 
+                            } 
+                        } 
+                    }
                 });
             },
 
             async fetchCloudData() {
-                this.isSyncing = true; this.updateUI();
+                this.isSyncing = true; 
+                this.updateUI();
                 try {
                     const response = await fetch(APPSCRIPT_URL);
                     const rows = await response.json();
                     if (Array.isArray(rows) && rows.length > 0) {
                         const headers = rows[0];
                         this.responses = rows.slice(1).map((row, idx) => {
-                            const [m, y] = String(row[2] || "").split(' ');
-                            return { id: `c-${idx}`, timestamp: row[0], employeeEmail: row[1], month: m || 'Januar', year: y || '2026', answers: this.questions.map(q => ({ questionId: q.id, value: row[headers.findIndex(h => h && h.includes(`ID:${q.id}`))] || '' })) };
+                            const periodStr = String(row[2] || "");
+                            const parts = periodStr.split(' ');
+                            const mName = parts[0] || 'Unknown';
+                            const y = parts[1] || this.selectedYear;
+                            
+                            return { 
+                                id: `c-${idx}`, 
+                                timestamp: row[0], 
+                                employeeEmail: row[1], 
+                                monthIndex: this.normalizeMonth(mName), 
+                                year: y, 
+                                answers: this.questions.map(q => {
+                                    // Search headers for exact ID tag like [ID:q-id]
+                                    const colIndex = headers.findIndex(h => h && h.toString().includes(`[ID:${q.id}]`));
+                                    return { 
+                                        questionId: q.id, 
+                                        value: colIndex > -1 ? row[colIndex] : '' 
+                                    };
+                                }) 
+                            };
                         });
                     }
-                } catch (e) {} finally { this.isSyncing = false; this.updateUI(); }
+                } catch (e) {
+                    console.error("Fetch Cloud Error:", e);
+                } finally { 
+                    this.isSyncing = false; 
+                    this.updateUI(); 
+                }
             },
 
             async syncSchema() {
-                this.isSyncing = true; this.updateUI();
-                try { await fetch(APPSCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'sync_schema', questions: this.questions }) }); alert('Schema Synced'); setTimeout(() => this.fetchCloudData(), 1500); }
-                catch (e) {} finally { this.isSyncing = false; this.updateUI(); }
+                this.isSyncing = true; 
+                this.updateUI();
+                const payload = { 
+                    action: 'sync_schema', 
+                    questions: this.questions 
+                };
+                try { 
+                    await fetch(APPSCRIPT_URL, { 
+                        method: 'POST', 
+                        mode: 'no-cors', 
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(payload) 
+                    }); 
+                    alert('Schema Sync Request Sent. Sheet columns will be updated.'); 
+                    setTimeout(() => this.fetchCloudData(), 2000); 
+                } catch (e) {
+                    console.error("Sync Schema Error:", e);
+                } finally { 
+                    this.isSyncing = false; 
+                    this.updateUI(); 
+                }
             }
         };
         app.init();
