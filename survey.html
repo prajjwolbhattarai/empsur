@@ -12,8 +12,6 @@
         .survey-card:active { transform: scale(0.98); }
         .animate-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .loading-shimmer { background: linear-gradient(90deg, #f1f5f9 25%, #f8fafc 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
@@ -32,11 +30,7 @@
 
     <main class="flex-grow container mx-auto px-4 py-8">
         <div id="survey-container" class="max-w-2xl mx-auto animate-in">
-            <!-- Loading State -->
-            <div id="loading-view" class="space-y-6">
-                <div class="h-12 w-1/2 loading-shimmer rounded-xl mx-auto"></div>
-                <div class="h-64 w-full loading-shimmer rounded-[2rem]"></div>
-            </div>
+            <!-- Content injected via JS -->
         </div>
     </main>
 
@@ -45,7 +39,7 @@
     </footer>
 
     <script>
-        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxTvoifj1hblrg8zjjDLJGw1USPngqBB2kcJNVH3D7hue_yXRDkg6xQTfhdB5UHTL_p/exec';
+        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxmpfiLTmmfMuGbhwGg4Oq9lEdmRcN4CSc-aLwUYBkUHnSPIbRAWbQUHh33g1E3hZUx/exec';
         
         const translations = {
             de: {
@@ -90,32 +84,21 @@
 
         const surveyApp = {
             lang: localStorage.getItem('app_lang') || 'de',
-            questions: [],
+            questions: JSON.parse(localStorage.getItem('survey_questions') || '[]'),
             isSyncing: false,
             state: {
                 isStarted: false,
                 email: '',
                 isAnonymous: false,
-                month: '',
+                month: translations.de.months[new Date().getMonth()],
                 year: new Date().getFullYear().toString(),
                 answers: {},
                 submitted: false
             },
 
-            async init() {
+            init() {
                 this.state.month = translations[this.lang].months[new Date().getMonth()];
-                await this.fetchQuestions();
                 this.updateUI();
-            },
-
-            async fetchQuestions() {
-                try {
-                    const response = await fetch(APPSCRIPT_URL);
-                    const cloudResult = await response.json();
-                    if (cloudResult.questions && cloudResult.questions.length > 0) {
-                        this.questions = cloudResult.questions;
-                    }
-                } catch (e) { console.error("Cloud Config Fetch Failed:", e); }
             },
 
             setLang(lang) {
@@ -142,7 +125,10 @@
                             <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 text-4xl mx-auto mb-8">✓</div>
                             <h2 class="text-3xl font-black text-slate-900 mb-4 uppercase tracking-tighter">${t.loggedSuccess}</h2>
                             <p class="text-slate-500 font-bold mb-10 text-sm">${t.successMsg}</p>
-                            <div class="space-y-4"><button onclick="surveyApp.reset()" class="w-full bg-slate-900 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">${t.newCheckin}</button><a href="index.html" class="block text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 tracking-[0.2em] transition-all">${t.backToDash}</a></div>
+                            <div class="space-y-4">
+                                <button onclick="surveyApp.reset()" class="w-full bg-slate-900 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">${t.newCheckin}</button>
+                                <a href="index.html" class="block text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 tracking-[0.2em] transition-all">${t.backToDash}</a>
+                            </div>
                         </div>
                     `;
                     return;
@@ -154,12 +140,27 @@
                             <h2 class="text-3xl font-black mb-10 text-slate-900 uppercase tracking-tighter leading-none">${t.opsAudit}</h2>
                             <form onsubmit="surveyApp.start(event)" class="space-y-6">
                                 <div class="space-y-2">
-                                    <div class="flex justify-between items-center px-1"><label class="text-[10px] font-black text-slate-900 uppercase tracking-widest">${t.workerIdent}</label><div class="flex items-center gap-2"><input type="checkbox" id="anon-toggle" ${this.state.isAnonymous ? 'checked' : ''} onchange="surveyApp.state.isAnonymous = this.checked; surveyApp.updateUI();" class="w-4 h-4 accent-slate-900 cursor-pointer" /><label for="anon-toggle" class="text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none">${t.anonymousMode}</label></div></div>
+                                    <div class="flex justify-between items-center px-1">
+                                        <label class="text-[10px] font-black text-slate-900 uppercase tracking-widest">${t.workerIdent}</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="checkbox" id="anon-toggle" ${this.state.isAnonymous ? 'checked' : ''} onchange="surveyApp.state.isAnonymous = this.checked; surveyApp.updateUI();" class="w-4 h-4 accent-slate-900 cursor-pointer" />
+                                            <label for="anon-toggle" class="text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer select-none">${t.anonymousMode}</label>
+                                        </div>
+                                    </div>
                                     <input type="email" required id="email-in" ${this.state.isAnonymous ? 'disabled' : ''} value="${this.state.email}" oninput="surveyApp.state.email = this.value" placeholder="${this.state.isAnonymous ? t.identityProtected : 'beispiel@firma.de'}" class="w-full px-5 py-4 rounded-xl border-2 outline-none font-bold transition-all ${this.state.isAnonymous ? 'bg-slate-50 border-slate-100 text-slate-300' : 'border-slate-100 focus:border-yellow-400 text-slate-700'}" />
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div class="space-y-2"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">${t.period}</label><select onchange="surveyApp.state.month = this.value" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 bg-white font-bold text-slate-700 outline-none">${t.months.map(m => `<option value="${m}" ${this.state.month === m ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
-                                    <div class="space-y-2 pt-6"><select onchange="surveyApp.state.year = this.value" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 bg-white font-bold text-slate-700 outline-none">${['2025', '2026', '2027', '2028', '2029', '2030'].map(y => `<option value="${y}" ${this.state.year === y ? 'selected' : ''}>${y}</option>`).join('')}</select></div>
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">${t.period}</label>
+                                        <select onchange="surveyApp.state.month = this.value" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 bg-white font-bold text-slate-700 outline-none">
+                                            ${t.months.map(m => `<option value="${m}" ${this.state.month === m ? 'selected' : ''}>${m}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2 pt-6">
+                                        <select onchange="surveyApp.state.year = this.value" class="w-full px-5 py-4 rounded-xl border-2 border-slate-100 bg-white font-bold text-slate-700 outline-none">
+                                            ${['2025', '2026', '2027', '2028', '2029', '2030'].map(y => `<option value="${y}" ${this.state.year === y ? 'selected' : ''}>${y}</option>`).join('')}
+                                        </select>
+                                    </div>
                                 </div>
                                 <button type="submit" class="w-full bg-slate-900 text-white py-6 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all text-lg">${t.openCheckin}</button>
                             </form>
@@ -169,22 +170,40 @@
                 }
 
                 const activeQuestions = this.questions.filter(q => !q.hidden && (q.isRecurring || (q.activeYears && q.activeYears.includes(this.state.year) && q.activeMonths && q.activeMonths.includes(this.state.month))));
+
                 container.innerHTML = `
                     <div class="space-y-6 pb-20 animate-in">
                         <div class="flex justify-between items-center bg-white p-8 rounded-[2rem] border-2 border-slate-100 shadow-sm">
-                            <div><h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">${t.opsAudit}</h2><p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">${this.state.month} ${this.state.year} • <span class="${this.state.isAnonymous ? 'text-blue-500 italic' : ''}">${this.state.isAnonymous ? t.identityProtected : this.state.email}</span></p></div>
+                            <div>
+                                <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">${t.opsAudit}</h2>
+                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">${this.state.month} ${this.state.year} • <span class="${this.state.isAnonymous ? 'text-blue-500 italic' : ''}">${this.state.isAnonymous ? t.identityProtected : this.state.email}</span></p>
+                            </div>
                             <button onclick="surveyApp.state.isStarted = false; surveyApp.updateUI();" class="text-[10px] font-black uppercase text-slate-400 hover:text-red-500 transition-all">${t.cancelEntry}</button>
                         </div>
                         <form onsubmit="surveyApp.submit(event)" class="space-y-6">
                             ${activeQuestions.map(q => `
                                 <div class="bg-white p-8 rounded-[2rem] shadow-sm border-2 border-slate-100 survey-card">
                                     <label class="text-xl font-black text-slate-900 tracking-tight block mb-6">${q.text}</label>
-                                    ${q.type === QuestionType.SATISFACTION_SCALE ? `<div class="flex flex-wrap gap-2">${[1,2,3,4,5].map(num => `<button type="button" onclick="surveyApp.setAnswer('${q.id}', ${num})" class="flex-1 py-6 rounded-xl font-black text-2xl border-2 transition-all ${this.state.answers[q.id]?.value === num ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-300 border-slate-50 hover:border-yellow-400 hover:text-slate-500'}">${num}</button>`).join('')}</div>` : 
-                                      q.type === QuestionType.PERFORMANCE_RATING ? `<div class="grid grid-cols-5 gap-2">${[1,2,3,4,5,6,7,8,9,10].map(num => `<button type="button" onclick="surveyApp.setAnswer('${q.id}', ${num})" class="aspect-square rounded-xl font-black text-lg border-2 transition-all flex items-center justify-center ${this.state.answers[q.id]?.value === num ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-300 border-slate-50 hover:border-yellow-400 hover:text-slate-500'}">${num}</button>`).join('')}</div>` : 
-                                      `<textarea required rows="4" oninput="surveyApp.setAnswer('${q.id}', this.value, true)" class="w-full px-6 py-6 rounded-xl border-2 border-slate-50 focus:border-yellow-400 outline-none font-bold text-slate-700 bg-slate-50/10 text-lg transition-all">${this.state.answers[q.id]?.value || ''}</textarea>`}
+                                    ${q.type === QuestionType.SATISFACTION_SCALE ? `
+                                        <div class="flex flex-wrap gap-2">
+                                            ${[1,2,3,4,5].map(num => `
+                                                <button type="button" onclick="surveyApp.setAnswer('${q.id}', ${num})" class="flex-1 py-6 rounded-xl font-black text-2xl border-2 transition-all ${this.state.answers[q.id]?.value === num ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-300 border-slate-50 hover:border-yellow-400 hover:text-slate-500'}">${num}</button>
+                                            `).join('')}
+                                        </div>
+                                    ` : q.type === QuestionType.PERFORMANCE_RATING ? `
+                                        <div class="grid grid-cols-5 gap-2">
+                                            ${[1,2,3,4,5,6,7,8,9,10].map(num => `
+                                                <button type="button" onclick="surveyApp.setAnswer('${q.id}', ${num})" class="aspect-square rounded-xl font-black text-lg border-2 transition-all flex items-center justify-center ${this.state.answers[q.id]?.value === num ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-300 border-slate-50 hover:border-yellow-400 hover:text-slate-500'}">${num}</button>
+                                            `).join('')}
+                                        </div>
+                                    ` : `
+                                        <textarea required rows="4" oninput="surveyApp.setAnswer('${q.id}', this.value, true)" class="w-full px-6 py-6 rounded-xl border-2 border-slate-50 focus:border-yellow-400 outline-none font-bold text-slate-700 bg-slate-50/10 text-lg transition-all">${this.state.answers[q.id]?.value || ''}</textarea>
+                                    `}
                                 </div>
                             `).join('')}
-                            <button type="submit" ${this.isSyncing ? 'disabled' : ''} class="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-lg uppercase tracking-[0.2em] hover:bg-slate-800 shadow-xl disabled:opacity-50">${this.isSyncing ? t.transmitting : t.submitEntry}</button>
+                            <button type="submit" ${this.isSyncing ? 'disabled' : ''} class="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-lg uppercase tracking-[0.2em] hover:bg-slate-800 shadow-xl disabled:opacity-50">
+                                ${this.isSyncing ? t.transmitting : t.submitEntry}
+                            </button>
                         </form>
                     </div>
                 `;
@@ -196,9 +215,18 @@
 
             async submit(e) {
                 e.preventDefault();
-                this.isSyncing = true; this.updateUI();
+                this.isSyncing = true;
+                this.updateUI();
                 const period = `${this.state.month} ${this.state.year}`;
-                const payload = { action: 'submit_response', payload: { id: Math.random().toString(36).substr(2, 9), employeeEmail: this.state.isAnonymous ? 'Anonym' : this.state.email, month: this.state.month, year: this.state.year, period: period, timestamp: new Date().toISOString(), answers: Object.entries(this.state.answers).map(([qid, data]) => ({ questionId: qid, value: data.value })) } };
+                const payload = {
+                    action: 'submit_response',
+                    payload: {
+                        id: Math.random().toString(36).substr(2, 9),
+                        employeeEmail: this.state.isAnonymous ? 'Anonym' : this.state.email,
+                        month: this.state.month, year: this.state.year, period: period, timestamp: new Date().toISOString(),
+                        answers: Object.entries(this.state.answers).map(([qid, data]) => ({ questionId: qid, value: data.value }))
+                    }
+                };
                 try {
                     await fetch(APPSCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
                     this.state.submitted = true;
