@@ -34,6 +34,7 @@
                 <input type="password" id="access-key" placeholder="Enter Access Key" class="w-full bg-slate-900 border-2 border-slate-800 rounded-2xl py-5 px-6 text-center text-white font-black tracking-widest outline-none focus:border-yellow-400 transition-all placeholder:text-slate-700 placeholder:tracking-normal placeholder:font-bold">
                 <button onclick="executiveApp.verifyAccess()" id="verify-btn" class="w-full bg-yellow-400 text-slate-950 py-5 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-yellow-300 transition-all shadow-xl shadow-yellow-400/10">Authorize Access</button>
                 <p id="auth-error" class="text-red-500 text-[9px] font-black uppercase tracking-widest hidden">Access Denied • Invalid Key</p>
+                <p class="text-[8px] text-slate-600 mt-4 uppercase font-bold tracking-widest">Key stored in Spreadsheet: AdminConfig</p>
             </div>
         </div>
     </div>
@@ -95,7 +96,7 @@
     </footer>
 
     <script>
-        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxmpfiLTmmfMuGbhwGg4Oq9lEdmRcN4CSc-aLwUYBkUHnSPIbRAWbQUHh33g1E3hZUx/exec';
+        const APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxTvoifj1hblrg8zjjDLJGw1USPngqBB2kcJNVH3D7hue_yXRDkg6xQTfhdB5UHTL_p/exec';
         
         const translations = {
             de: {
@@ -479,8 +480,8 @@
 
             toggleSched(isRec) { document.getElementById('sched-options').className = `grid grid-cols-2 gap-4 ${isRec ? 'hidden' : ''}`; },
 
-            saveQuestionForm(e) {
-                e.preventDefault();
+            saveQuestionForm(event) {
+                event.preventDefault();
                 const text = document.getElementById('form-q-text').value;
                 const type = document.getElementById('form-q-type').value;
                 const isRecurring = document.querySelector('input[name="sched"]:checked').value === 'rec';
@@ -501,7 +502,7 @@
             },
 
             toggleHide(qid) {
-                const q = this.questions.find(que => qid === qid);
+                const q = this.questions.find(que => que.id === qid);
                 if (q) q.hidden = !q.hidden;
                 this.saveQuestions();
                 this.updateUI();
