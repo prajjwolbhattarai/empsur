@@ -20,12 +20,12 @@ export interface Question {
 export interface Answer {
   questionId: string;
   value: string | number;
+  discloseName: boolean;
 }
 
 export interface SurveyResponse {
   id: string;
   employeeEmail: string;
-  department: string;
   month: string;
   year: string;
   timestamp: string;
