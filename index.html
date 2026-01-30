@@ -475,7 +475,33 @@
                             </div>
                         </div>
 
-                        <!-- Metric Infra Management -->
+                        <!-- Data Cards (PLAYCARDS ABOVE) -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${this.questions.filter(q => !q.hidden).map(q => {
+                                const ans = filtered.flatMap(r => r.answers.filter(a => a.questionId === q.id));
+                                if (q.type === QuestionType.TEXT_FEEDBACK) return '';
+                                const max = q.type === QuestionType.SATISFACTION_SCALE ? 5 : 10;
+                                const scores = ans.map(a => parseFloat(a.value)).filter(v => !isNaN(v));
+                                const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+                                const percent = (avg / max) * 100;
+                                return `
+                                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[180px]">
+                                        <div class="flex justify-between items-start"><p class="text-[10px] font-black uppercase tracking-tight text-slate-900 max-w-[75%]">${q.text}</p><span class="bg-slate-50 text-[8px] font-black px-2 py-1 rounded">${scores.length}</span></div>
+                                        <div>
+                                            <div class="flex items-baseline gap-1 mb-2">
+                                                <span class="text-3xl font-black ${percent > 75 ? 'text-emerald-500' : 'text-yellow-500'}">${avg.toFixed(1)}</span>
+                                                <span class="text-slate-300 text-xs font-bold">/${max}</span>
+                                            </div>
+                                            <div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-yellow-400 transition-all duration-700" style="width: ${percent}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <!-- Metric Infra Management (MANAGEMENT DOWN) -->
                         <div class="bg-white p-8 md:p-12 rounded-[2.5rem] border-2 border-slate-100 shadow-sm">
                             <div class="flex justify-between items-center mb-10">
                                 <div>
@@ -552,32 +578,6 @@
                                     </div>
                                 `).join('')}
                             </div>
-                        </div>
-
-                        <!-- Data Cards -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            ${this.questions.filter(q => !q.hidden).map(q => {
-                                const ans = filtered.flatMap(r => r.answers.filter(a => a.questionId === q.id));
-                                if (q.type === QuestionType.TEXT_FEEDBACK) return '';
-                                const max = q.type === QuestionType.SATISFACTION_SCALE ? 5 : 10;
-                                const scores = ans.map(a => parseFloat(a.value)).filter(v => !isNaN(v));
-                                const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-                                const percent = (avg / max) * 100;
-                                return `
-                                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[180px]">
-                                        <div class="flex justify-between items-start"><p class="text-[10px] font-black uppercase tracking-tight text-slate-900 max-w-[75%]">${q.text}</p><span class="bg-slate-50 text-[8px] font-black px-2 py-1 rounded">${scores.length}</span></div>
-                                        <div>
-                                            <div class="flex items-baseline gap-1 mb-2">
-                                                <span class="text-3xl font-black ${percent > 75 ? 'text-emerald-500' : 'text-yellow-500'}">${avg.toFixed(1)}</span>
-                                                <span class="text-slate-300 text-xs font-bold">/${max}</span>
-                                            </div>
-                                            <div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-yellow-400 transition-all duration-700" style="width: ${percent}%"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
                         </div>
                     </div>
                 `;
