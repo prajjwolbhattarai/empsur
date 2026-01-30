@@ -4,6 +4,7 @@ import { Question, QuestionType, SurveyResponse, Answer, Language } from '../typ
 import { translations } from '../translations';
 
 const YEARS = ['2025', '2026', '2027', '2028', '2029', '2030'];
+const DEFAULT_SYNC_URL = 'https://script.google.com/macros/s/AKfycbzhsBtLWsN4IOF21kXDQxyXmwuvcmfde5jmLxPp0PNxKIZ1D39orL35SKamh8q5RIo/exec';
 
 interface EmployeeSurveyProps {
   lang: Language;
@@ -15,8 +16,8 @@ const EmployeeSurvey: React.FC<EmployeeSurveyProps> = ({ lang }) => {
   const [email, setEmail] = useState('');
   const [dept, setDept] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [month, setMonth] = useState(t.months[0]);
-  const [year, setYear] = useState('2025');
+  const [month, setMonth] = useState(t.months[new Date().getMonth()]);
+  const [year, setYear] = useState(new Date().getFullYear().toString());
   const [isStarted, setIsStarted] = useState(false);
   const [answers, setAnswers] = useState<Record<string, { value: string | number }>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -65,7 +66,7 @@ const EmployeeSurvey: React.FC<EmployeeSurveyProps> = ({ lang }) => {
       department: dept,
       month,
       year,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toLocaleString(),
       answers: (Object.entries(answers) as [string, { value: string | number }][])
         .filter(([qid]) => activeQuestions.some(aq => aq.id === qid))
         .map(([qid, data]): Answer => ({
@@ -79,16 +80,19 @@ const EmployeeSurvey: React.FC<EmployeeSurveyProps> = ({ lang }) => {
     localStorage.setItem('survey_responses', JSON.stringify([...existing, payload]));
 
     // Sync to Cloud
-    const syncUrl = localStorage.getItem('sync_url');
-    if (syncUrl) {
-      try {
-        await fetch(syncUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'submit_response', payload: payload })
-        });
-      } catch (err) { console.error("Cloud Sync Error", err); }
+    const syncUrl = localStorage.getItem('sync_url') || DEFAULT_SYNC_URL;
+    try {
+      await fetch(syncUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'submit_response', 
+          payload: payload 
+        })
+      });
+    } catch (err) { 
+      console.error("Cloud Sync Error", err); 
     }
 
     setIsSyncing(false);
@@ -101,7 +105,7 @@ const EmployeeSurvey: React.FC<EmployeeSurveyProps> = ({ lang }) => {
         <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 text-5xl mx-auto mb-8 animate-bounce">✓</div>
         <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 uppercase tracking-tighter">{t.loggedSuccess}</h2>
         <p className="text-slate-500 font-bold mb-10">{t.successMsg}</p>
-        <button onClick={() => { setSubmitted(false); setIsStarted(false); setEmail(''); }} className="w-full bg-slate-900 text-white px-10 py-6 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">{t.newCheckin}</button>
+        <button onClick={() => { setSubmitted(false); setIsStarted(false); setEmail(''); setAnswers({}); }} className="w-full bg-slate-900 text-white px-10 py-6 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all">{t.newCheckin}</button>
       </div>
     );
   }
