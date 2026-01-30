@@ -1,2 +1,1 @@
-
-// This file is no longer needed.
+// File removed in favor of index.html consolidation.
